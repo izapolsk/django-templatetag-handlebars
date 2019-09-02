@@ -1,6 +1,6 @@
 from django import template
 from django.conf import settings
-from django.utils import six
+from django.utils import safestring, six
 
 register = template.Library()
 
@@ -98,7 +98,8 @@ def verbatim(parser, token):
 
 @register.simple_tag
 def handlebars_js():
-    return """<script src="%shandlebars.js"></script>""" % settings.STATIC_URL
+    out = """<script src="%shandlebars.js"></script>""" % settings.STATIC_URL
+    return safestring.mark_safe(out)
 
 
 class HandlebarsNode(VerbatimNode):
@@ -133,12 +134,15 @@ class HandlebarsNode(VerbatimNode):
         </script>""" % (head_script, output)
 
 
+def stripquote(s):
+    return s[1:-1] if s[:1] == '"' else s
+
+
 @register.tag
 def tplhandlebars(parser, token):
     text_and_nodes = verbatim_tags(parser, token, endtagname='endtplhandlebars')
     # Extract template id from token
     tokens = token.split_contents()
-    stripquote = lambda s: s[1:-1] if s[:1] == '"' else s
     try:
         tag_name, template_id = map(stripquote, tokens[:2])
     except ValueError:
