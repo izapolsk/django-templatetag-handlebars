@@ -1,8 +1,16 @@
+import django
 from django.conf import settings
-from django.template import Context, Template
-from django.test.utils import override_settings
+from django.template import Context, Engine
 from django.test import TestCase
+from django.test.utils import override_settings
 
+settings.configure(DATABASES={"default": {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}})
+django.setup()
+libs = {
+    "templatetag_handlebars": "templatetag_handlebars.templatetags.templatetag_handlebars",
+    "i18n": "django.templatetags.i18n"
+    }
+engine = Engine(libraries=libs)
 
 
 class TemplateTagTest(TestCase):
@@ -12,13 +20,13 @@ class TemplateTagTest(TestCase):
         """
         Tests that {{}} tags are well escaped.
         """
-        t = Template("""
+        t = engine.from_string("""
             {% load i18n templatetag_handlebars %}
-            
+
             <head>
                 {% handlebars_js %}
             </head>
-            
+
             {% tplhandlebars "tpl-testing" %}
                 {% trans "with translation" %}
                 {{name}}
@@ -28,19 +36,20 @@ class TemplateTagTest(TestCase):
             """)
         c = Context()
         rendered = t.render(c)
-        
+        print(rendered)
+
         self.assertFalse(settings.USE_EMBER_STYLE_ATTRS)
-        self.failUnless('handlebars.js"></script>' in rendered)
-        self.failUnless('<script id="tpl-testing" type="text/x-handlebars-template">' in rendered)
-        self.failUnless('{{name}}' in rendered)
-        self.failUnless('{{{rawname}}}' in rendered)
-        self.failUnless('with translation' in rendered)
+        self.assertTrue('handlebars.js"></script>' in rendered)
+        self.assertTrue('<script type="text/x-handlebars-template" id="tpl-testing">' in rendered)
+        self.assertTrue('{{name}}' in rendered)
+        self.assertTrue('{{{rawname}}}' in rendered)
+        self.assertTrue('with translation' in rendered)
         # Those should not be rendered :
-        self.failUnless('{% trans %}' not in rendered)
-        self.failUnless('comments' not in rendered)
+        self.assertTrue('{% trans %}' not in rendered)
+        self.assertTrue('comments' not in rendered)
         # HTML should not be escaped
-        self.failUnless('<p>' in rendered)
-        self.failUnless('</p>' in rendered)
+        self.assertTrue('<p>' in rendered)
+        self.assertTrue('</p>' in rendered)
 
     # Set the Ember style settings to true here
     @override_settings(USE_EMBER_STYLE_ATTRS=True)
@@ -50,13 +59,13 @@ class TemplateTagTest(TestCase):
         EMBERJS rendering ON
         Tests that {{}} tags are well escaped.
         """
-        t = Template("""
+        t = engine.from_string("""
             {% load i18n templatetag_handlebars %}
-            
+
             <head>
                 {% handlebars_js %}
             </head>
-            
+
             {% tplhandlebars "tpl-testing" %}
                 {% trans "with translation" %}
                 <p>{{name}}</p>
@@ -66,17 +75,17 @@ class TemplateTagTest(TestCase):
             """)
         c = Context()
         rendered = t.render(c)
+        print(rendered)
 
         self.assertTrue(settings.USE_EMBER_STYLE_ATTRS)
-        self.failUnless('handlebars.js"></script>' in rendered)
-        self.failUnless('<script type="text/x-handlebars" data-template-name="tpl-testing">' in rendered)
-        self.failUnless('{{name}}' in rendered)
-        self.failUnless('{{{rawname}}}' in rendered)
-        self.failUnless('with translation' in rendered)
+        self.assertTrue('handlebars.js"></script>' in rendered)
+        self.assertTrue('<script type="text/x-handlebars" data-template-name="tpl-testing">' in rendered)
+        self.assertTrue('{{name}}' in rendered)
+        self.assertTrue('{{{rawname}}}' in rendered)
+        self.assertTrue('with translation' in rendered)
         # Those should not be rendered :
-        self.failUnless('{% trans %}' not in rendered)
-        self.failUnless('comments' not in rendered)
+        self.assertTrue('{% trans %}' not in rendered)
+        self.assertTrue('comments' not in rendered)
         # HTML should not be escaped
-        self.failUnless('<p>' in rendered)
-        self.failUnless('</p>' in rendered)
-
+        self.assertTrue('<p>' in rendered)
+        self.assertTrue('</p>' in rendered)
